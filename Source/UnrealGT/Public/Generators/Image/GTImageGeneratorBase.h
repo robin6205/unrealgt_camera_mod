@@ -41,6 +41,12 @@ public:
         FRotator& OutRotation,
         FVector& OutTranslation) const;
 
+    UFUNCTION(BlueprintCallable, Category = "GT Image Generator")
+    FIntPoint GetResolution() const;
+
+    UFUNCTION(BlueprintCallable, Category = "GT Image Generator")
+    float GetFOVAngle() const;
+
 protected:
     UPROPERTY()
     UGTSceneCaptureComponent2D* SceneCaptureComponent;

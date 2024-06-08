@@ -161,3 +161,13 @@ FIntPoint UGTImageGeneratorBase::GenerateRandomResolution()
         FMath::RandRange(Resolution.X, ResolutionMax.X),
         FMath::RandRange(Resolution.Y, ResolutionMax.Y));
 }
+
+FIntPoint UGTImageGeneratorBase::GetResolution() const
+{
+    return Resolution;
+}
+
+float UGTImageGeneratorBase::GetFOVAngle() const
+{
+    return FOVAngle;
+}
