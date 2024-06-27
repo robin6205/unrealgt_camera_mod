@@ -106,8 +106,13 @@ public:
     UPROPERTY(EditAnywhere, Category = "Output Format", meta = (MultiLine = "true"))
     FString Format3DBoxString;
 
+    UPROPERTY(EditAnywhere, Category = "Output Format", meta = (MultiLine = "true"))
+    FString FormatVelocityString;
+
     UPROPERTY(EditAnywhere, Category = "Output Format")
     TMap<FString, FString> ReplaceStrings;
+
+
 
     virtual void GenerateData(const FDateTime& TimeStamp);
 
@@ -116,6 +121,12 @@ public:
 #if WITH_EDITOR
     virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
+    // Add these lines in the appropriate location in the header file
+    virtual void TickComponent(
+        float DeltaTime,
+        ELevelTick TickType,
+        FActorComponentTickFunction* ThisTickFunction) override;
+
 
 protected:
     void BeginPlay() override;
@@ -146,4 +157,6 @@ private:
     FString Box2DToFormattedString(const FBox2D& InBox);
 
     FString Box3DToFormattedString(const FBox& InBox);
+
+    FString VelocityToFormattedString(const FVector& InVelocity);
 };

@@ -9,7 +9,7 @@
 #include <Engine/StaticMesh.h>
 #include <Engine/TextureRenderTarget2D.h>
 #include <EngineUtils.h>
-
+#include <Components/PrimitiveComponent.h>
 #include "GTFileUtilities.h"
 #include "Generators/Image/GTImageGeneratorBase.h"
 #include "Generators/Image/GTSceneCaptureComponent2D.h"
@@ -19,20 +19,31 @@ UGTActorInfoGeneratorComponent::UGTActorInfoGeneratorComponent()
     , MinimalRequiredBoundingBoxSize(0, 0)
     , MaxDistanceToCamera(20000.f)
     , Header(TEXT(""))
-    , FormatActorString(TEXT("{ActorName} {WorldLocation}"))
+    , FormatActorString(TEXT("{ActorName} {WorldLocation} {WorldRotation} {Velocity}"))
     , Separator(TEXT("\n"))
     , Footer(TEXT(""))
     , FormatVector2DString(TEXT("{X} {Y}"))
     , FormatVector3DString(TEXT("{X} {Y} {Z}"))
     , FormatRotatorString(TEXT("{Yaw} {Pitch} {Roll}"))
+    , FormatVelocityString(TEXT("{X} {Y} {Z}"))
     , Format2DBoxString(TEXT("{Min} {Max} {Center} {Extent} {Width} {Height}"))
     , Format3DBoxString(TEXT("{Min} {Max} {Center} {Extent}"))
 {
     SegmentationSceneCapture = CreateDefaultSubobject<UGTSceneCaptureComponent2D>(
         TEXT("InternalSegmentationSceneCapture"));
     SegmentationSceneCapture->SetupAttachment(this);
-}
 
+    // Set the tick function to run after physics
+    PrimaryComponentTick.TickGroup = TG_PostPhysics;
+    PrimaryComponentTick.bCanEverTick = true;
+}
+void UGTActorInfoGeneratorComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+{
+    Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+    // Generate data at each tick
+    GenerateData(FDateTime::Now());
+}
 void UGTActorInfoGeneratorComponent::GenerateData(const FDateTime& TimeStamp)
 {
     // Cleanup
@@ -115,6 +126,29 @@ void UGTActorInfoGeneratorComponent::GenerateData(const FDateTime& TimeStamp)
                     ScreenBoundingBox.Max);
         }
 
+        // Get actor velocity using physics component
+        FVector ActorVelocity(0.0f, 0.0f, 0.0f);
+
+        // Iterate through components to find the one with physics simulation enabled
+        TArray<UPrimitiveComponent*> PrimitiveComponents;
+        TrackedActor->GetComponents<UPrimitiveComponent>(PrimitiveComponents);
+        for (UPrimitiveComponent* Component : PrimitiveComponents)
+        {
+            // if (Component->IsSimulatingPhysics())
+            // {
+            //     ActorVelocity = Component->GetPhysicsLinearVelocity();
+            //     break; // Found the component, no need to check further
+            // }
+            ActorVelocity = Component->GetPhysicsLinearVelocity();
+            UE_LOG(LogTemp, Warning, TEXT("Actor: %s, Component: %s, Velocity: %s"),
+            *TrackedActor->GetName(),
+            *Component->GetName(),
+            *ActorVelocity.ToString());
+        }
+
+        // Convert Unreal units to meters (assuming Unreal units are centimeters)
+        ActorVelocity /= 100.0f;
+
         TMap<FString, FStringFormatArg> GlobalProperties{
             {TEXT("WorldLocation"), Vector3DToFormattedString(TrackedActor->GetActorLocation())},
             {TEXT("WorldRotation"), RotatorToFormattedString(TrackedActor->GetActorRotation())},
@@ -124,6 +158,7 @@ void UGTActorInfoGeneratorComponent::GenerateData(const FDateTime& TimeStamp)
             {TEXT("ScreenBoundingBoxNormalized"),
              Box2DToFormattedString(ScreenBoundingBoxNormalized)},
             {TEXT("ActorName"), TrackedActor->GetName()},
+            {TEXT("Velocity"), VelocityToFormattedString(ActorVelocity)},
             {TEXT("MeshName"), MeshName}};
 
         FString ActorResult = FString::Format(*FormatActorString, GlobalProperties);
@@ -371,6 +406,15 @@ bool UGTActorInfoGeneratorComponent::GetActorScreenBoundingBox(
     OutBox = ScreenBoundingBox;
 
     return true;
+}
+
+FString UGTActorInfoGeneratorComponent::VelocityToFormattedString(const FVector& InVelocity)
+{
+    return FString::Format(
+        *FormatVelocityString,
+        {{TEXT("X"), InVelocity.X},
+         {TEXT("Y"), InVelocity.Y},
+         {TEXT("Z"), InVelocity.Z}});
 }
 
 FString UGTActorInfoGeneratorComponent::Vector2DToFormattedString(const FVector2D& InVector)
